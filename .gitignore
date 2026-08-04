@@ -1,0 +1,6 @@
+projeto/build/
+projeto/_build/
+projeto/cmake/
+*.elf
+*.hex
+*.o

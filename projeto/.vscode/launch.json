@@ -1,0 +1,54 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Note: Properties here can override MPLAB project settings
+      "name": "Simular: MPLAB Simulator",
+      "type": "mplab-core-da",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/main.elf",
+      "device": "ATmega328P",
+      "tool": "Simulator",
+      "stopOnEntry": true,
+      "preLaunchTask": "Build",
+      "properties": {
+        "usart0io.uartioenabled": "true",
+        "usart0io.output": "window"
+      }
+    },
+    {
+      // Note: Properties here can override MPLAB project settings
+      "name": "Debugar serial-eco (MPLAB Simulator)",
+      "type": "mplab-core-da",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/serial-eco.elf",
+      "device": "ATmega328P",
+      "tool": "Simulator",
+      "stopOnEntry": true,
+      "preLaunchTask": "Build exemplo",
+      "properties": {
+        "usart0io.uartioenabled": "true",
+        "usart0io.output": "window"
+      }
+    },
+    {
+      "name": "Simular: simavr + GDB",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/main.elf",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "avr-gdb",
+      "miDebuggerServerAddress": "localhost:1234",
+      "preLaunchTask": "Build + simavr",
+      "postDebugTask": "Parar simavr",
+      "setupCommands": [
+        {
+          "description": "Formatação do GDB",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}
