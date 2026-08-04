@@ -1,20 +1,21 @@
-# Assembly do AVR (ATmega328P) no VS Code + WSL + MPLAB
+# Assembly do AVR (ATmega328P) no VS Code + MPLAB
 
 Ambiente completo para **codar em assembly com a sintaxe do Microchip Studio (AVRASM2)**,
 buildar, **simular e debugar** (registradores, memória, step por instrução) com o
 **MPLAB Simulator** dentro do VS Code, e **gravar no Arduino** com o AVRDUDE.
 
-## Pré-requisitos
-
-1. **VS Code** — https://code.visualstudio.com
-2. **WSL com Ubuntu** — em um PowerShell como administrador: `wsl --install -d Ubuntu`
-   (reinicie e crie seu usuário Linux quando pedir)
-
-Placa: Arduino Uno (ATmega328P).
+Funciona no **Windows (via WSL)** e no **Linux**. Placa: Arduino Uno (ATmega328P).
 
 ## Instalação (2 comandos)
 
-Abra o terminal do **Ubuntu (WSL)** e rode:
+Em ambos os casos você precisa do **VS Code** (https://code.visualstudio.com).
+
+### Windows
+
+Pré-requisito: **WSL com Ubuntu** — em um PowerShell como administrador:
+`wsl --install -d Ubuntu` (reinicie e crie seu usuário Linux quando pedir).
+
+No terminal do **Ubuntu (WSL)**:
 
 ```bash
 git clone https://github.com/ErickMascarenhas/microcontroladores-mplab-vsc.git
@@ -24,6 +25,18 @@ cd microcontroladores-mplab-vsc && ./setup/setup-wsl.sh
 O script instala a toolchain AVR no WSL, gera o include `m328Pdef.inc`, instala as
 extensões do VS Code e, ao final, oferece rodar a parte Windows (usbipd + extensões
 locais). Depois **feche e reabra o terminal** (necessário para o grupo `dialout`).
+
+### Linux
+
+```bash
+git clone https://github.com/ErickMascarenhas/microcontroladores-mplab-vsc.git
+cd microcontroladores-mplab-vsc && ./setup/setup-linux.sh
+```
+
+O script reconhece a distribuição (Debian/Ubuntu, Fedora, Arch, openSUSE), instala a
+toolchain, libera o acesso à porta serial, gera o include, instala as extensões do
+VS Code e confere tudo no final. Depois **faça logout e login** (ou `newgrp dialout`).
+Aqui o Arduino é acessado direto (`/dev/ttyACM0`): o `attach-arduino.ps1` é só do Windows.
 
 ## Usando
 
@@ -43,7 +56,7 @@ As tasks são executadas por `Ctrl+Shift+P` → *Tasks: Run Task*.
 | Registradores (r0–r31, SREG, SP, PC) | *Run and Debug* → *Variables* → *Registers* → *CPU* |
 | **Memória completa** (SRAM/flash) | Com o debug **pausado**: `Ctrl+Shift+P` → **Memory: Show Memory Inspector** (o adaptador MPLAB suporta ler *e* escrever memória) |
 | **SFRs/periféricos (USART, portas, timers)** | `Ctrl+Shift+P` → **MPLAB IO View: Show** durante o debug |
-| **Gravar na placa** | 1) No Windows: `setup\attach-arduino.ps1` 2) No VS Code: task **"Upload para o Arduino"** |
+| **Gravar na placa** | task **"Upload para o Arduino"** (no Windows, rode antes `setup\attach-arduino.ps1`) |
 | Gravar o exemplo na placa | task **"Upload serial-eco para o Arduino"** |
 | **Monitor serial (USART na placa)** | task **"Monitor serial (placa via USB)"** (picocom; `Ctrl+A Ctrl+X` sai) |
 | **Ciclos de clock / tempo de uma rotina** | task **"Medir ciclos / tempo"** (veja [Clock e ciclos](#clock-e-ciclos)) |
@@ -97,9 +110,9 @@ make serial SERIAL_ALVO=build/main.elf # o seu programa
 Isso usa [ferramentas/avr-serial.c](projeto/ferramentas/avr-serial.c), que roda o
 firmware no simulador com a USART0 conectada à sua entrada/saída padrão.
 
-**Na placa real:** Após ter rodado `setup\attach-arduino.ps1` no
-Windows, execute a task **"Upload serial-eco para o Arduino"** e
-depois **"Monitor serial (placa via USB)"** (picocom).
+**Na placa real:** execute a task **"Upload serial-eco para o Arduino"** e depois
+**"Monitor serial (placa via USB)"** (picocom). No Windows, rode antes o
+`setup\attach-arduino.ps1`; no Linux basta conectar a placa.
 
 ## Compatibilidade com o AVRASM2
 
@@ -111,9 +124,10 @@ preservando os números de linha.
 
 ```
 setup/
-  setup-wsl.sh        # toolchain AVR + include + extensões (roda no Ubuntu)
-  setup-windows.ps1   # usbipd-win + extensões VS Code (roda no Windows)
-  attach-arduino.ps1  # conecta o USB do Arduino ao WSL (roda a cada replug)
+  setup-wsl.sh        # Windows: toolchain AVR + include + extensões (roda no Ubuntu do WSL)
+  setup-windows.ps1   # Windows: usbipd-win + extensões VS Code
+  attach-arduino.ps1  # Windows: conecta o USB do Arduino ao WSL (a cada reconexão)
+  setup-linux.sh      # Linux: instala e configura tudo (dispensa os três acima)
 projeto/
   main.asm            # seu código (sintaxe AVRASM2)
   Makefile            # build / flash / sim  (make, make flash, make sim)
@@ -125,9 +139,15 @@ projeto/
 
 ## Solução de problemas
 
-- **`avrdude: can't open device /dev/ttyACM0`** — rode `setup\attach-arduino.ps1` no
-  Windows (a cada reconexão da placa), confira com `ls /dev/ttyACM* /dev/ttyUSB*`.
-- **`Permission denied` na porta serial** — feche e reabra o terminal.
+- **`avrdude: can't open device /dev/ttyACM0`** — confira a porta com
+  `ls /dev/ttyACM* /dev/ttyUSB*` (clones com CH340 aparecem como `/dev/ttyUSB0`:
+  use `make flash PORT=/dev/ttyUSB0`). No Windows, rode `setup\attach-arduino.ps1`
+  a cada reconexão da placa.
+- **`Permission denied` na porta serial** — falta a sessão nova depois de entrar no
+  grupo: no Windows feche e reabra o terminal; no Linux faça logout e login.
+- **Clone com CH340 não aparece no Linux** — o `brltty` costuma capturar esse
+  conversor; o `setup-linux.sh` desativa a regra dele, mas pode ser preciso
+  reconectar a placa depois.
 - **F5 do MPLAB não inicia** — veja o painel *Output* → *MPLAB*; utilize a opção
   (`simavr + GDB`) para debug.
 - **"Failed to start session: No source lines found"** — o ELF está sem o símbolo
