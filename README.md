@@ -41,7 +41,7 @@ As tasks são executadas por `Ctrl+Shift+P` → *Tasks: Run Task*.
 | Debugar o exemplo | `F5` — config "Debugar serial-eco (MPLAB Simulator)" |
 | Step por instrução assembly | `Ctrl+Shift+F11` (ou o botão extra na barra de debug) |
 | Registradores (r0–r31, SREG, SP, PC) | *Run and Debug* → *Variables* → *Registers* → *CPU* |
-| **Memória completa** (SRAM/flash) | `Ctrl+Shift+P` → **Memory Inspector: Show Memory Inspector** durante o debug (o adaptador MPLAB suporta ler *e* escrever memória) |
+| **Memória completa** (SRAM/flash) | Com o debug **pausado**: `Ctrl+Shift+P` → **Memory: Show Memory Inspector** (o adaptador MPLAB suporta ler *e* escrever memória) |
 | **SFRs/periféricos (USART, portas, timers)** | `Ctrl+Shift+P` → **MPLAB IO View: Show** durante o debug |
 | **Gravar na placa** | 1) No Windows: `setup\attach-arduino.ps1` 2) No VS Code: task **"Upload para o Arduino"** |
 | Gravar o exemplo na placa | task **"Upload serial-eco para o Arduino"** |
@@ -131,10 +131,14 @@ projeto/
 - **F5 do MPLAB não inicia** — veja o painel *Output* → *MPLAB*; utilize a opção
   (`simavr + GDB`) para debug.
 - **"Failed to start session: No source lines found"** — o ELF está sem o símbolo
-  `main` (execute a task **"Developer: Reload Window"**).
+  `main`: builde pelo `Ctrl+Shift+B` (é o Makefile que injeta o símbolo).
 - **Breakpoint não fixa no .asm** — confirme que abriu a pasta `projeto/` e que o build (`Ctrl+Shift+B`) rodou sem erros.
 - **MPLAB IO View mostra só "?" no simavr** — esperado: o IO View lê pelos canais
   do adaptador MPLAB.
+- **Não encontro "Memory: Show Memory Inspector" na paleta** — o comando é da
+  categoria *Memory* (não "Memory Inspector") e só aparece com uma sessão de debug
+  **pausada**, abrindo a pasta `projeto/` — é o `.vscode/settings.json` dela que
+  registra o debugger do MPLAB no visualizador.
 - **Memory Inspector pede endereço** — digite `0` (ou um símbolo) e Enter.
 - **"Cannot read field 'pcAddr' because 'csFrame' is null"** — bug conhecido do
   backend MPLAB (beta) ao resolver a call stack em certas pausas; não afeta a

@@ -1,5 +1,5 @@
 ; m328Pdef.inc convertido do pack oficial Microchip ATmega_DFP 3.6.299
-; (sintaxe adaptada para o GNU assembler; nomes de registradores/bits identicos)
+; (sintaxe adaptada para o GNU assembler; nomes de registradores/bits idênticos)
 ;***** THIS IS A MACHINE GENERATED FILE - DO NOT EDIT ********************
 ;***** Created: 2011-02-09 12:03 ******* Source: ATmega328P.xml **********
 ;*************************************************************************
@@ -980,7 +980,7 @@
 
 ; ***** END OF FILE ******************************************************
 
-; --- Aliases em minusculas (o AVRASM2 e case-insensitive; o GNU as nao) ---
+; --- Aliases em minúsculas (o AVRASM2 é case-insensitive; o GNU as não) ---
 .equ signature_000, SIGNATURE_000
 .equ signature_001, SIGNATURE_001
 .equ signature_002, SIGNATURE_002
