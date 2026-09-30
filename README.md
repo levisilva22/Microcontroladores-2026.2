@@ -1,25 +1,25 @@
 # Microcontroladores-2026.2
 Implementar comportamento de semáfores no microcontrolador ATMEGA328P
 
-## Estrutura padrão de diretórios (projeto AVR)
+## Estrutura padrão de diretórios (projeto AVR em Assembly)
 
 ```text
 .
 ├── Makefile
 ├── README.md
 ├── include/
-│   └── *.h
+│   └── *.inc
 ├── src/
-│   ├── main.c
-│   └── *.c
+│   ├── main.asm
+│   └── *.asm
 ├── lib/
 │   └── <biblioteca>/
 │       ├── include/
-│       │   └── *.h
+│       │   └── *.inc
 │       └── src/
-│           └── *.c
+│           └── *.asm
 ├── tests/
-│   └── *.c
+│   └── *.asm
 ├── docs/
 │   └── *.md
 └── build/
@@ -27,10 +27,10 @@ Implementar comportamento de semáfores no microcontrolador ATMEGA328P
     └── bin/
 ```
 
-- `src/`: código-fonte principal da aplicação AVR.
-- `include/`: arquivos de cabeçalho globais do projeto.
-- `lib/`: bibliotecas internas reutilizáveis (cada uma com `include/` e `src/`).
-- `tests/`: testes unitários/integrados, quando aplicável.
+- `src/`: código-fonte principal em Assembly da aplicação AVR.
+- `include/`: arquivos de inclusão (`.inc`) globais do projeto.
+- `lib/`: bibliotecas internas reutilizáveis em Assembly (cada uma com `include/` e `src/`).
+- `tests/`: testes em Assembly, quando aplicável.
 - `docs/`: documentação técnica e instruções de uso.
 - `build/`: artefatos gerados no processo de compilação (não versionar).
-- `Makefile`: automação de compilação, gravação e limpeza do projeto.
+- `Makefile`: automação de montagem, gravação e limpeza do projeto.
