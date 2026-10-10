@@ -1,0 +1,13 @@
+projeto/build/
+projeto/_build/
+projeto/cmake/
+*.o
+
+# Uso pessoal
+include/
+avrasm-compat.awk
+Makefile
+
+# vscode
+.vscode/
+setup/
