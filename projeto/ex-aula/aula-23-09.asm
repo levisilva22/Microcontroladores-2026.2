@@ -12,8 +12,8 @@ jmp press_button ; INT0
 ; Resto do vetor não é usado -> o código pode ocupar esse espaço
 ; Tabela de conversão 0x0-0xF -> padrão do display de 7 segmentos
 ; (cátodo comum, segmento aceso = 1; bit0=a, bit1=b, ..., bit6=g, bit7=dp)
-sevenseg_table:
-.db 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71
+;sevenseg_table:
+;.db 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71
 
 reset:
   ; iniciar a pilha
@@ -29,12 +29,11 @@ reset:
   ldi temp0, (1 << INT0)
   out EIMSK, temp0
 
-  ldi temp0, 0b11111011 ;PORTD como saída pro display, exceto PD2 (botão/INT0) como entrada
+  ldi temp0, $FF ;PORTD ligado ao display -> saída
   out DDRB, temp0
-  ldi temp0, 0b0001100
-  out DDRD, temp0
+
   clr count ;zera o contador
-  rcall display_count ;mostra 0 no display antes do primeiro clique
+  rcall mostra_count ;mostra 0 no display antes do primeiro clique
 
   sei ;enabled interrupts can occur now
 
@@ -48,11 +47,11 @@ press_button: ;rotina de interrupção do INT0
 
   inc count
   cpi count, 0x10 ;passou de 0xF?
-  brne show
+  brne mostra
   clr count ;volta pra 0x0
 
-show:
-  rcall display_count
+mostra:
+  rcall mostra_count
 
   pop temp0
   out SREG, temp0 ;restaura SREG
@@ -60,19 +59,18 @@ show:
   reti
 
 ; Le sevenseg_table[count] e escreve no PORTD
-display_count:
+mostra_count:
   push ZL
   push ZH
   push temp1
 
-  ldi ZL, low(sevenseg_table*2)
-  ldi ZH, high(sevenseg_table*2)
-  clr temp1
-  add ZL, count
-  adc ZH, temp1
-  lpm temp1, Z
-  out PORTB, temp1
-  ldi temp0, low(temp1)
+  ldi temp0, low(count)
+  ldi low(temp1), temp0
+  ldi temp0, high(count)
+  ldi high(temp1), (temp0 + 0x0)
+  
+  out PORTD, temp1
+
   pop temp1
   pop ZH
   pop ZL

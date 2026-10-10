@@ -1,6 +1,13 @@
 projeto/build/
 projeto/_build/
 projeto/cmake/
-*.elf
-*.hex
 *.o
+
+# Uso pessoal
+include/
+avrasm-compat.awk
+Makefile
+
+# vscode
+.vscode/
+setup/

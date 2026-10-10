@@ -30,11 +30,10 @@ reset:
   out EIMSK, temp0
 
   ldi temp0, 0b11111011 ;PORTD como saída pro display, exceto PD2 (botão/INT0) como entrada
-  out DDRB, temp0
-  ldi temp0, 0b0001100
   out DDRD, temp0
+
   clr count ;zera o contador
-  rcall display_count ;mostra 0 no display antes do primeiro clique
+  rcall mostra_count ;mostra 0 no display antes do primeiro clique
 
   sei ;enabled interrupts can occur now
 
@@ -48,11 +47,11 @@ press_button: ;rotina de interrupção do INT0
 
   inc count
   cpi count, 0x10 ;passou de 0xF?
-  brne show
+  brne mostra
   clr count ;volta pra 0x0
 
-show:
-  rcall display_count
+mostra:
+  rcall mostra_count
 
   pop temp0
   out SREG, temp0 ;restaura SREG
@@ -60,7 +59,7 @@ show:
   reti
 
 ; Le sevenseg_table[count] e escreve no PORTD
-display_count:
+mostra_count:
   push ZL
   push ZH
   push temp1
@@ -71,8 +70,8 @@ display_count:
   add ZL, count
   adc ZH, temp1
   lpm temp1, Z
-  out PORTB, temp1
-  ldi temp0, low(temp1)
+  out PORTD, temp1
+
   pop temp1
   pop ZH
   pop ZL
