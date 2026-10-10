@@ -1,8 +1,0 @@
-{
-    "recommendations": [
-        "microchip.mplab-extension-pack",
-        "ms-vscode.cpptools",
-        "eclipse-cdt.memory-inspector",
-        "rockcat.avr-support"
-    ]
-}
