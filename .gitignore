@@ -6,8 +6,11 @@ projeto/cmake/
 # Uso pessoal
 include/
 avrasm-compat.awk
-Makefile
+./projeto/Makefile
 
 # vscode
-.vscode/
+./projeto/.vscode/
 setup/
+./README.md
+./projeto/ferramentas/
+./projeto/ex-aula/
