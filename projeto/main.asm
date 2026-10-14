@@ -1,79 +1,224 @@
-.include "m328Pdef.inc"
+.include "m328Pdef.inc" 
 
-.def count = r18
-.def temp0 = r16
-.def temp1 = r17
+.def temp = r16
+.def dozens = r17
+.def states = r18
+.def timer = r19
+.def unit = r20
+.def current_digit = r21
+.def count_ticks = r22
+.equ STATE_NUMBER = 3
+.equ TICKS_PER_SECOND = 250
 
-; vetor de interrupção
+#define CLOCK 16000000 
+#define DELAY 4
+.equ PRESCALE = 0b100       ;/256 prescale
+.equ PRESCALE_DIV = 256
+.equ WGM = 0b0100           ;Waveform generation mode: CTC (TOP = OCR1A)
+;Em CTC o período é (TOP + 1) ciclos do timer, por isso o "- 1"
+;16e6/256 * 1 = 31250  -->  TOP = 31249
+.equ TOP = ((CLOCK/PRESCALE_DIV)*DELAY + 500)/1000 - 1
+.if TOP > 65535
+.error "TOP is out of range"
+.endif
+
+
+.cseg
+; vetor de interrupção por timers
 .org 0x0000
 jmp reset
-jmp press_button ; INT0
+.org OC1Aaddr
+jmp interruption_timer
 
-; Resto do vetor não é usado -> o código pode ocupar esse espaço
-; Tabela de conversão 0x0-0xF -> padrão do display de 7 segmentos
-; (cátodo comum, segmento aceso = 1; bit0=a, bit1=b, ..., bit6=g, bit7=dp)
-sevenseg_table:
-.db 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x77, 0x7C, 0x39, 0x5E, 0x79, 0x71
+
+states_vetor:
+.db 0b00010000, 0b00100000, 0b01000000   ; PD4 verde, PD5 amarelo, PD6 vermelho
+
+timers_vetor:
+.db 0x32, 0x5, 0x3, 0x14, 0x5A, 0x5, 0xF
 
 reset:
-  ; iniciar a pilha
-  ldi temp0, high(RAMEND)
-  out SPH, temp0
-  ldi temp0, low(RAMEND)
-  out SPL, temp0
+  ldi temp, high(RAMEND)
+  out SPH, temp
+  ldi temp, low(RAMEND)
+  out SPL, temp
+  
+  ; defini a saída da porta D
+  ; Seta a saída do led 
+  ; conforme a máquina de estados
+  ldi temp, 0b01110000    ; PD4, PD5 e PD6 como saída (LEDs)
+  out DDRD, temp
+  ldi temp, 0b00111111    ; PB0 a PB3 como saída (decodificador)
+  out DDRB, temp
 
-  ; Configurando interrupção externa pino INT0
-  ldi temp0, (0b11 << ISC00) ;positive edge triggers
-  sts EICRA, temp0
-  ;enable int0
-  ldi temp0, (1 << INT0)
-  out EIMSK, temp0
+  clr states 
+  clr count_ticks
+  
+  clr current_digit
+  rcall load_display
+  
+  rcall interruption_handle
+  sei
 
-  ldi temp0, 0b11111011 ;PORTD como saída pro display, exceto PD2 (botão/INT0) como entrada
-  out DDRB, temp0
-  ldi temp0, 0b0001100
-  out DDRD, temp0
-  clr count ;zera o contador
-  rcall display_count ;mostra 0 no display antes do primeiro clique
-
-  sei ;enabled interrupts can occur now
 
 loop:
-  rjmp loop ;espera as interrupções do botão
+  rjmp loop
 
-press_button: ;rotina de interrupção do INT0
-  push temp0
-  in temp0, SREG ;salvar SREG na pilha
-  push temp0
+load_display:
+	; Seta a saída do led conforme a máquina de estados
+  ldi ZL, low(states_vetor*2)
+	ldi ZH, high(states_vetor*2)
+	clr temp
+	add ZL, states
+	adc ZH, temp
+	lpm temp, Z
+	out PORTD, temp
 
-  inc count
-  cpi count, 0x10 ;passou de 0xF?
-  brne show
-  clr count ;volta pra 0x0
+	; Seta o tempo para o estado atual
+	ldi ZL, low(timers_vetor*2)
+	ldi ZH, high(timers_vetor*2)
+	clr temp
+	add ZL, states
+	adc ZH, temp
+	lpm timer, Z
 
-show:
-  rcall display_count
+	rcall split_digits       
+	ret
 
-  pop temp0
-  out SREG, temp0 ;restaura SREG
-  pop temp0
-  reti
 
-; Le sevenseg_table[count] e escreve no PORTD
-display_count:
+interruption_handle:
+  push temp
+  in temp, SREG
+  push temp
+
+  
+	;On MEGA series, write high byte of 16-bit timer registers first
+	ldi temp, high(TOP) ;initialize compare value (TOP)
+	sts OCR1AH, temp
+	ldi temp, low(TOP)
+	sts OCR1AL, temp
+
+	;zera o contador
+	clr temp
+	sts TCNT1H, temp
+	sts TCNT1L, temp
+
+	ldi temp, ((WGM&0b11) << WGM10) ;lower 2 bits of WGM
+	; WGM&0b11 = 0b0100 & 0b0011 = 0b0000
+	sts TCCR1A, temp
+
+	;habilita a interrupção de Compare Match A
+	lds temp, TIMSK1
+	sbr temp, 1 << OCIE1A
+	sts TIMSK1, temp
+
+	;upper 2 bits of WGM and clock select
+	ldi temp, ((WGM>> 2) << WGM12)|(PRESCALE << CS10)
+	; WGM >> 2 = 0b0100 >> 2 = 0b0001
+	; (WGM >> 2) << WGM12 = (0b0001 << 3) = 0b0001000
+	; (PRESCALE << CS10) = 0b100 << 0 = 0b100
+	; 0b0001000 | 0b100 = 0b0001100
+	sts TCCR1B, temp ;start counter
+	
+  pop temp
+  out SREG, temp
+  pop temp
+
+  ret
+
+changed_states:
+  ; Salver temp
+  ; Salvar SREG
+  ; Verificar se chegou no estado 6
+  ; Então retorna para o 0
+  ; Se não Avanço um estado
+
+  inc states
+  cpi states, STATE_NUMBER
+  brne load_new
+  clr states
+
+load_new:
+  rcall load_display
+  ret
+
+
+interruption_timer:
+  ; salvar registrador temp
+  ; salvar SREG
+  ; Desencrementar Timer
+  ; Verificar se chegou em zero
+  ; branch se chegou
+  ; ler os dois vetores e escrever o
+  ; padrao na PORTD
+  ; carregar a nova duração do timer
+  ; atualizar o display com o valor atual
+  ; restaurar pilha 
+  ; reti
+
+  push temp
+  in temp, SREG
+  push temp
   push ZL
   push ZH
-  push temp1
 
-  ldi ZL, low(sevenseg_table*2)
-  ldi ZH, high(sevenseg_table*2)
-  clr temp1
-  add ZL, count
-  adc ZH, temp1
-  lpm temp1, Z
-  out PORTB, temp1
-  ldi temp0, low(temp1)
-  pop temp1
+  ; mostra um dos displays ligado
+  rcall multiplexar
+
+  ; Contar os ticks a cada 1s
+  inc count_ticks
+  cpi count_ticks, TICKS_PER_SECOND
+  brne end_isr
+  
+  clr count_ticks
+  dec timer
+  brne update_digits
+  
+
+  rcall changed_states
+  rjmp end_isr
+
+update_digits:
+  rcall split_digits
+
+end_isr:
   pop ZH
   pop ZL
+  pop temp
+  out SREG, temp
+  pop temp
+  
+  reti
+
+multiplexar:
+  cpi current_digit, 0
+  breq bytes_dozens
+
+  mov temp, unit
+  ori temp, (1<<PB5)
+  rjmp write_display
+  
+bytes_dozens:
+  mov temp, dozens
+  ori temp, (1<<PB4)
+  
+write_display:
+  out PORTB, temp
+  ldi temp, 1
+  eor current_digit, temp
+  ret
+
+split_digits:
+  mov temp, timer
+  clr dozens
+
+dozens_loop:
+  cpi temp, 10
+  brlo show
+  subi temp, 10
+  inc dozens
+  rjmp dozens_loop
+
+show:
+  mov unit, temp
   ret
