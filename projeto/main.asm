@@ -7,8 +7,13 @@
 .def unit = r20
 .def current_digit = r21
 .def count_ticks = r22
+.def Highaddr = r24
+.def Loweraddr = r25
+
 .equ STATE_NUMBER = 3
 .equ TICKS_PER_SECOND = 250
+.equ UBRRvalue = 103
+
 
 #define CLOCK 16000000 
 #define DELAY 4
@@ -24,18 +29,36 @@
 
 
 .cseg
+;=================================;
 ; vetor de interrupção por timers
+;=================================;
 .org 0x0000
 jmp reset
 .org OC1Aaddr
 jmp interruption_timer
 
+;================================;
+; vetor de interrupção por USART
+;================================;
+.org UDREaddr
+jmp usart_interruption
 
+;cometar
 states_vetor:
 .db 0b00010000, 0b00100000, 0b01000000   ; PD4 verde, PD5 amarelo, PD6 vermelho
 
 timers_vetor:
 .db 0x32, 0x5, 0x3, 0x14, 0x5A, 0x5, 0xF
+
+msg_1:
+.asciz "Semaforo 1 - Verde\r\n"
+msg_2:
+.asciz "Semaforo 1 - Amarelo\r\n"
+msg_3:
+.asciz "Semaforo 1 - Vermelho\r\n"
+
+msg_vetor:
+.word msg_1, msg_2, msg_3
 
 reset:
   ldi temp, high(RAMEND)
@@ -51,12 +74,25 @@ reset:
   ldi temp, 0b00111111    ; PB0 a PB3 como saída (decodificador)
   out DDRB, temp
 
+  ; Inicialize o USART
+  ldi temp, high(UBRRvalue)
+  sts UBRR0H, temp
+  ldi temp, low(UBRRvalue)
+  sts UBRR0L, temp
+
+  ;8 bits, 1 stop. no parity
+  ldi temp, (3<<UCSZ00)
+  sts UCSR0C, temp
+  ldi temp, (1<<TXEN0)
+  sts UCSR0B, temp
+
   clr states 
   clr count_ticks
   
   clr current_digit
   rcall load_display
   
+  rcall prepare_for_send
   rcall interruption_handle
   sei
 
@@ -127,12 +163,6 @@ interruption_handle:
   ret
 
 changed_states:
-  ; Salver temp
-  ; Salvar SREG
-  ; Verificar se chegou no estado 6
-  ; Então retorna para o 0
-  ; Se não Avanço um estado
-
   inc states
   cpi states, STATE_NUMBER
   brne load_new
@@ -140,6 +170,7 @@ changed_states:
 
 load_new:
   rcall load_display
+  rcall prepare_for_send
   ret
 
 
@@ -221,4 +252,54 @@ dozens_loop:
 
 show:
   mov unit, temp
+  ret
+
+usart_interruption:
+  push temp
+  push ZH
+  push ZL
+  in temp, SREG
+  push temp
+
+  rcall transmit
+
+  pop temp
+  out SREG, temp
+  pop ZL
+  pop ZH
+  pop temp
+  reti
+
+transmit:
+  mov ZH, Highaddr
+  mov ZL, Loweraddr
+  lpm temp, Z+              ; lê o caractere e avança
+  cpi temp, 0
+  breq shotdown_udrie0      ; fim da string
+
+  sts UDR0, temp            ; envia
+  mov Highaddr, ZH          ; guarda a posição seguinte
+  mov Loweraddr, ZL
+  ret
+
+shotdown_udrie0:
+  lds temp, UCSR0B
+  andi temp, 0b11011111     ; desliga só o UDRIE0 (bit 5)
+  sts UCSR0B, temp
+  ret
+
+prepare_for_send:
+  ldi ZL, low(msg_vetor*2)
+  ldi ZH, high(msg_vetor*2)
+  mov temp, states
+  lsl temp                  ; cada endereço tem 2 bytes
+  add ZL, temp
+  clr temp                  ; o clr não altera o carry
+  adc ZH, temp
+  lpm Loweraddr, Z+         ; o .dw guarda o byte baixo primeiro
+  lpm Highaddr, Z
+
+  lds temp, UCSR0B
+  ori temp, (1<<UDRIE0)     ; liga só o UDRIE0
+  sts UCSR0B, temp
   ret
