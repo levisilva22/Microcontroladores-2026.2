@@ -121,8 +121,11 @@ reset:
   clr count_ticks
 
   clr current_digit
-  clr s1_phase
-  rcall reload_s1_timer   ; carrega o 1º valor do contador do display
+  ; O display acompanha o S1. Ele liga já no vermelho (fase 2) e, em E0+E1,
+  ; faltam 30+5 = 35 s pra abrir o verde em E2.
+  ldi temp, 2
+  mov s1_phase, temp
+  ldi count, 35
   rcall load_display      ; acende os LEDs de E0 e já mostra o 1º número
 
   rcall prepare_for_send    ; prepara a 1ª mensagem da USART
@@ -462,11 +465,14 @@ estados_portC:
 timers_states:
 .db 30, 5, 60, 3, 20, 5, 15
 
-; Ciclo próprio do contador do display (verde/amarelo/vermelho do
-; semáforo S1), lido por reload_s1_timer -- independente de timers_states
-; acima.
+; Ciclo do contador do display = tempo de cada cor do semáforo S1, na ordem
+; verde, amarelo, vermelho. Precisa fechar os mesmos 138 s da máquina de
+; estados e trocar junto com ela:
+;   verde    = E2          = 60 s
+;   amarelo  = E3          =  3 s
+;   vermelho = E4+E5+E6+E0+E1 = 20+5+15+30+5 = 75 s
 timers_vetor:
-.db 98, 20, 5
+.db 60, 3, 75
 
 ;==============================================================================
 ; Uma mensagem de status por estado (E0..E6), mandada pela USART toda vez
