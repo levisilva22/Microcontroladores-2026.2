@@ -430,6 +430,8 @@ prepare_for_send:
   adc ZH, temp
   lpm Loweraddr, Z+         ; o .dw guarda o byte baixo primeiro
   lpm Highaddr, Z
+  lsl Loweraddr             ; o .dw guarda endereço em PALAVRAS; lpm quer BYTES
+  rol Highaddr              ; (x2, igual ao *2 das outras tabelas)
 
   lds temp, UCSR0B
   ori temp, (1<<UDRIE0)     ; liga só o UDRIE0
